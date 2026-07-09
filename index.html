@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>微信推文封面提取工具（在线版）</title>
+<style>
+  :root{
+    --bg:#0a1730; --panel:#0e2143; --panel2:#102a52; --line:#23406e;
+    --silver:#c2cad8; --lab:#f3f6fb; --accent:#3b82f6; --accent2:#38bdf8;
+    --txt:#e8eef7; --muted:#8aa0c0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,#13294f 0%,var(--bg) 60%);
+       color:var(--txt);font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;min-height:100vh}
+  .wrap{max-width:1000px;margin:0 auto;padding:28px 20px 60px}
+  h1{font-size:22px;margin:0 0 4px;letter-spacing:.5px}
+  h1 .dot{color:var(--accent2)}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+        border-radius:14px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  textarea{width:100%;background:#08152e;border:1px solid var(--line);color:var(--lab);
+        border-radius:10px;padding:12px 14px;font-size:14px;outline:none;font-family:inherit;min-height:120px;resize:vertical}
+  textarea:focus{border-color:var(--accent)}
+  input[type=text]{width:100%;background:#08152e;border:1px solid var(--line);color:var(--lab);
+        border-radius:10px;padding:12px 14px;font-size:14px;outline:none;font-family:inherit}
+  input:focus{border-color:var(--accent)}
+  button{cursor:pointer;border:none;border-radius:10px;padding:12px 18px;font-size:14px;font-weight:600;
+         background:linear-gradient(180deg,var(--accent),#2563eb);color:#fff;transition:.15s;white-space:nowrap}
+  button:hover{filter:brightness(1.1)}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--silver)}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .modes{display:flex;gap:8px;margin-bottom:12px}
+  .modes button{background:transparent;border:1px solid var(--line);color:var(--silver);flex:0}
+  .modes button.active{background:linear-gradient(180deg,var(--accent),#2563eb);color:#fff;border-color:transparent}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:13px;color:var(--silver);margin-bottom:6px}
+  .warn{font-size:12px;color:#fcd34d;background:rgba(252,211,77,.08);border:1px solid rgba(252,211,77,.3);
+        border-radius:8px;padding:8px 12px;margin-top:8px;line-height:1.6}
+  #status{margin:16px 0;font-size:13px;color:var(--muted);min-height:18px}
+  .err{color:#fca5a5}.ok{color:#86efac}
+  .sources{display:grid;gap:22px}
+  .src{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:rgba(255,255,255,.02)}
+  .src .shead{padding:12px 16px;border-bottom:1px solid var(--line);background:rgba(56,189,248,.08);
+             font-size:12px;color:var(--silver);word-break:break-all;display:flex;gap:8px;align-items:center}
+  .src .shead .idx{background:var(--accent2);color:#06243a;border-radius:6px;padding:1px 8px;font-weight:700}
+  .articles{display:grid;gap:16px;padding:16px}
+  .art{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .art .head{padding:10px 14px;border-bottom:1px solid var(--line);background:rgba(59,130,246,.07)}
+  .art .head .t{font-size:14px;font-weight:600;color:var(--lab);word-break:break-word}
+  .imgs{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px}
+  @media(max-width:640px){.imgs{grid-template-columns:1fr}}
+  .imgbox{border:1px solid var(--line);border-radius:12px;background:#06122a;overflow:hidden;display:flex;flex-direction:column}
+  .imgbox .tag{font-size:12px;color:var(--accent2);padding:8px 12px;border-bottom:1px solid var(--line)}
+  .imgbox img{width:100%;display:block;background:#0b1c3a;min-height:120px;object-fit:contain}
+  .imgbox .acts{padding:10px 12px;display:flex;gap:8px;border-top:1px solid var(--line)}
+  .imgbox .acts button{flex:1;text-align:center;font-size:12px;padding:9px 8px;background:transparent;
+        border:1px solid var(--line);color:var(--silver);border-radius:8px;cursor:pointer}
+  .imgbox .acts button:hover{background:rgba(255,255,255,.05)}
+  .url{font-size:11px;color:var(--muted);padding:0 12px 10px;word-break:break-all;font-family:ui-monospace,monospace}
+  .foot{margin-top:26px;color:var(--muted);font-size:12px;line-height:1.7}
+  .foot code{background:#08152e;border:1px solid var(--line);padding:2px 6px;border-radius:6px;color:var(--silver)}
+  .hidden{display:none}
+  .proxybox{margin-bottom:14px;padding:12px;border:1px dashed var(--line);border-radius:10px;background:rgba(255,255,255,.02)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>微信推文封面提取 <span class="dot">·</span> 在线版</h1>
+  <div class="sub">1:1 与 235:100 封面提取 · 纯前端 · 托管于 GitHub Pages</div>
+
+  <div class="card">
+    <div class="proxybox">
+      <div class="field" style="margin:0">
+        <label>CORS 代理（在线显示/下载微信图必须；数据会经第三方）</label>
+        <input type="text" id="proxy" value="https://api.allorigins.win/raw?url="/>
+      </div>
+      <div class="warn">微信图片有防盗链，在线版必须经 CORS 代理读取才能显示和下载。若某个代理失效，可换成
+        <code>https://corsproxy.io/?url=</code> 或 <code>https://api.codetabs.com/v1/proxy/?quest=</code>。
+        对隐私/客户内容更敏感时，请用本机 Python 版（数据不出本机）。</div>
+    </div>
+
+    <div class="modes">
+      <button id="mSrc" class="active" onclick="switchMode('src')">粘贴源代码（在线 100% 可用）</button>
+      <button id="mUrl" onclick="switchMode('url')">输入链接</button>
+    </div>
+
+    <div id="pSrc">
+      <div class="field">
+        <label>网页源代码（右键→查看网页源代码→全选复制，可多段）</label>
+        <textarea id="src" placeholder="把网页源代码粘贴到这里…"></textarea>
+      </div>
+      <button id="goSrc">解析并加载图片</button>
+    </div>
+
+    <div id="pUrl" class="hidden">
+      <div class="field">
+        <label>推文链接（每行一个，支持批量）</label>
+        <textarea id="urls" placeholder="https://mp.weixin.qq.com/s?__biz=...&#10;https://mp.weixin.qq.com/s?__biz=..."></textarea>
+      </div>
+      <div class="warn">⚠️ 链接模式借助公共 CORS 代理抓取微信页面，链接与内容会经过第三方服务器；微信可能临时封锁代理 IP，失败时请用「粘贴源代码」模式。</div>
+      <div style="margin-top:12px"><button id="goUrl">提取</button></div>
+    </div>
+  </div>
+
+  <div id="status"></div>
+  <div class="sources" id="results"></div>
+
+  <div class="foot">
+    说明：<br>
+    • <code>cdn_url_1_1</code> → 正方形封面（1:1）；<code>cdn_url_235_100</code> → 横幅封面（235:100）。<br>
+    • 自动命名：<code>序号_标题_1x1.jpg</code> / <code>序号_标题_235x100.jpg</code>。<br>
+    • 图片与下载均经上方 CORS 代理读取，以绕过微信防盗链。<br>
+    • 需要完全本地、无需代理、数据不出本机的版本，见同仓库 <code>wechat_cover_tool.py</code>（本机 Python 服务）。
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const setStatus = (m,c)=>{const e=$('#status');e.textContent=m;e.className=c||'';};
+const esc = s => (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sanitize = s => (s||'cover').replace(/[\\/:*?"<>|\n\r\t]+/g,'_').replace(/\s+/g,'_').slice(0,40);
+
+// 链接模式尝试的代理顺序（任一可用即可）
+const PROXIES = [
+  "https://api.allorigins.win/raw?url=",
+  "https://api.codetabs.com/v1/proxy/?quest=",
+  "https://corsproxy.io/?url="
+];
+
+function switchMode(m){
+  $('#mSrc').classList.toggle('active', m==='src');
+  $('#mUrl').classList.toggle('active', m==='url');
+  $('#pSrc').classList.toggle('hidden', m!=='src');
+  $('#pUrl').classList.toggle('hidden', m!=='url');
+}
+
+function parseSource(src){
+  const c11 = [...src.matchAll(/cdn_url_1_1"\s*:\s*"(.*?)"/g)].map(m=>m[1]);
+  const c235 = [...src.matchAll(/cdn_url_235_100"\s*:\s*"(.*?)"/g)].map(m=>m[1]);
+  const titles = [...src.matchAll(/"title"\s*:\s*"(.*?)"/g)].map(m=>m[1].replace(/\\u([0-9a-fA-F]{4})/g,(_,h)=>String.fromCharCode(parseInt(h,16))));
+  const n = Math.max(c11.length, c235.length, 1);
+  const arts = [];
+  for(let k=0;k<n;k++){
+    if(!c11[k] && !c235[k]) continue;
+    arts.push({title: titles[k] || ('第 '+(k+1)+' 篇'), c11:c11[k]||'', c235:c235[k]||''});
+  }
+  if(!arts.length){
+    const m = src.match(/var msg\s*=\s*\{[^}]*"img_url"\s*:\s*"(.*?)"/);
+    if(m) arts.push({title:'封面图', c11:'', c235:'', cover:m[1]});
+  }
+  return arts;
+}
+
+function imgCard(si, ai, tag, ratio, url){
+  if(!url) return '<div class="imgbox"><div class="tag">'+tag+'</div><div class="url">未找到</div></div>';
+  const proxy = $('#proxy').value.trim();
+  const proxUrl = proxy + encodeURIComponent(url);
+  const fname = si+'_'+ai+'_'+sanitize(LAST.title(si,ai))+'_'+ratio+'.jpg';
+  return '<div class="imgbox">'+
+    '<div class="tag">'+tag+'</div>'+
+    '<img src="'+esc(proxUrl)+'" alt="'+tag+'" loading="lazy"/>'+
+    '<div class="url">'+esc(url)+'</div>'+
+    '<div class="acts">'+
+      '<button onclick="dl(\''+encodeURIComponent(url)+'\',\''+esc(fname)+'\')">下载</button>'+
+      '<button onclick="window.open(\''+esc(proxUrl)+'\',\'_blank\')">新窗口</button>'+
+    '</div></div>';
+}
+
+let LAST = {arts:[], title:()=>'cover'};
+
+function render(sources){
+  const box=$('#results'); box.innerHTML='';
+  if(!sources.length){ setStatus('没有解析到结果。','err'); return; }
+  setStatus('解析完成：'+sources.length+' 个来源。若图片未显示，换一个 CORS 代理再试。','ok');
+  LAST.arts = sources;
+  LAST.title = (si,ai)=>{const s=sources[si]; return (s && s.articles && s.articles[ai]) ? (s.articles[ai].title||'cover') : 'cover';};
+  sources.forEach((s,si)=>{
+    const div=document.createElement('div'); div.className='src';
+    let head='<div class="shead"><span class="idx">'+(si+1)+'</span><span>'+esc(s.url||'(粘贴的源代码)')+'</span></div>';
+    if(s.error) head+='<div class="shead" style="background:rgba(252,165,165,.1);color:#fca5a5">'+esc(s.error)+'</div>';
+    let body='<div class="articles">';
+    (s.articles||[]).forEach((a,ai)=>{
+      body+='<div class="art"><div class="head"><div class="t">'+esc(a.title||('第 '+(ai+1)+' 篇'))+'</div></div>'+
+        '<div class="imgs">'+imgCard(si,ai,'1:1 方形','1x1',a.c11||a.cover)+imgCard(si,ai,'235:100 横幅','235x100',a.c235||a.cover)+'</div></div>';
+    });
+    body+='</div>';
+    div.innerHTML=head+body; box.appendChild(div);
+  });
+}
+
+async function dl(encUrl, fname){
+  const url=decodeURIComponent(encUrl);
+  const proxy=$('#proxy').value.trim();
+  try{
+    const r=await fetch(proxy+encodeURIComponent(url));
+    const blob=await r.blob();
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  }catch(e){
+    alert('下载失败（代理可能被拦）：'+e.message+'\n可改用「新窗口打开」后右键另存，或换一个 CORS 代理。');
+  }
+}
+
+function extractSrc(){
+  const src=$('#src').value;
+  if(!src.trim()){ setStatus('请先粘贴网页源代码。','err'); return; }
+  setStatus('正在解析并加载图片…');
+  try{ render([{url:'(粘贴的源代码)', articles: parseSource(src)}]); }
+  catch(e){ setStatus('解析失败：'+e.message,'err'); }
+}
+
+async function fetchViaProxy(u){
+  let lastErr='';
+  for(const p of PROXIES){
+    try{
+      const r=await fetch(p+encodeURIComponent(u), {cache:'no-store'});
+      if(!r.ok) { lastErr='HTTP '+r.status; continue; }
+      const html=await r.text();
+      if(html && (html.includes('msgList') || html.includes('cdn_url'))){
+        return html;
+      }
+      lastErr='未返回有效内容';
+    }catch(e){ lastErr=e.message; }
+  }
+  throw new Error(lastErr || '所有代理均失败');
+}
+
+async function extractUrl(){
+  const urls=$('#urls').value.split('\n').map(x=>x.trim()).filter(Boolean);
+  if(!urls.length){ setStatus('请先粘贴至少一个链接。','err'); return; }
+  setStatus('正在通过 CORS 代理抓取 '+urls.length+' 个链接…');
+  const sources=[];
+  for(const u of urls){
+    try{
+      const html=await fetchViaProxy(u);
+      sources.push({url:u, articles: parseSource(html)});
+    }catch(e){ sources.push({url:u, articles:[], error:'抓取失败：'+e.message+'（微信可能临时封锁代理，改用「粘贴源代码」）'}); }
+  }
+  render(sources);
+}
+
+$('#goSrc').onclick=extractSrc;
+$('#goUrl').onclick=extractUrl;
+</script>
+</body>
+</html>
