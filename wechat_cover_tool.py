@@ -248,7 +248,18 @@ def extract_balanced(html, marker):
 
 
 def parse_articles(html):
+    import html as _html
     articles = []
+
+    def pick_banner(d):
+        for k in ("cdn_url_235_100", "cdn_url_235_1", "cdn_url_16_9", "cdn_url_2_1"):
+            if isinstance(d, dict):
+                v = d.get(k)
+                if v:
+                    return v
+        return ""
+
+    # 1) 优先 msgList（多图文场景）
     mlist_raw = extract_balanced(html, "var msgList = ")
     parsed = False
     if mlist_raw:
@@ -257,30 +268,43 @@ def parse_articles(html):
             for it in items:
                 if not isinstance(it, dict):
                     continue
-                title = it.get("title") or (it.get("app_msg_ext_info") or {}).get("title") or ""
-                articles.append({
-                    "title": title,
-                    "c11": it.get("cdn_url_1_1") or "",
-                    "c235": it.get("cdn_url_235_100") or "",
-                    "cover": it.get("cover") or it.get("img_url") or "",
-                })
+                entries = [it]
+                ext = it.get("app_msg_ext_info") or {}
+                if isinstance(ext, dict):
+                    sub = ext.get("multi_app_msg_item_list") or []
+                    if isinstance(sub, list):
+                        entries.extend(sub)
+                for e in entries:
+                    if not isinstance(e, dict):
+                        continue
+                    sq = e.get("cdn_url_1_1") or ""
+                    banner = pick_banner(e)
+                    t = e.get("title") or it.get("title") or ""
+                    if sq or banner:
+                        articles.append({"title": t, "c11": sq, "c235": banner,
+                                         "cover": e.get("cover") or e.get("img_url") or ""})
             parsed = any(a["c11"] or a["c235"] for a in articles)
         except Exception:
             parsed = False
 
+    # 2) 回退：全局提取所有 cdn_url_X_Y 字段（兼容无 msgList / 独立 var 声明 / 单篇）
     if not parsed:
-        c11 = re.findall(r'cdn_url_1_1"\s*:\s*"(.*?)"', html)
-        c235 = re.findall(r'cdn_url_235_100"\s*:\s*"(.*?)"', html)
-        titles = re.findall(r'"title"\s*:\s*"(.*?)"', html)
-        n = max(len(c11), len(c235), 1)
-        for k in range(n):
-            articles.append({
-                "title": titles[k] if k < len(titles) else ("第 " + str(k + 1) + " 篇"),
-                "c11": c11[k] if k < len(c11) else "",
-                "c235": c235[k] if k < len(c235) else "",
-                "cover": "",
-            })
+        fields = {}
+        for m in re.finditer(r'(?:var\s+)?(cdn_url_\d+_\d+)\s*[:=]\s*["\']([^"\']+)["\']', html):
+            fields.setdefault(m.group(1), m.group(2))
+        if fields:
+            title = ""
+            mt = re.search(r'<meta property="og:title" content="([^"]+)"', html)
+            if mt:
+                title = _html.unescape(mt.group(1))
+            sq = fields.get("cdn_url_1_1", "")
+            banner = (fields.get("cdn_url_235_100") or fields.get("cdn_url_235_1")
+                      or fields.get("cdn_url_16_9") or fields.get("cdn_url_2_1") or "")
+            if sq or banner:
+                articles.append({"title": title, "c11": sq, "c235": banner, "cover": ""})
+                parsed = True
 
+    # 3) 去重
     seen = set()
     out = []
     for a in articles:
@@ -290,13 +314,6 @@ def parse_articles(html):
         seen.add(key)
         if a["c11"] or a["c235"]:
             out.append(a)
-    if not out:
-        cover = ""
-        m = re.search(r'var msg\s*=\s*\{.*?"img_url"\s*:\s*"(.*?)"', html, re.S)
-        if m:
-            cover = m.group(1)
-        if cover:
-            out.append({"title": "封面图", "c11": "", "c235": "", "cover": cover})
     return out
 
 
