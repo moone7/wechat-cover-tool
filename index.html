@@ -136,14 +136,17 @@ function switchMode(m){
 }
 
 function parseSource(src){
-  const c11 = [...src.matchAll(/cdn_url_1_1"\s*:\s*"(.*?)"/g)].map(m=>m[1]);
-  const c235 = [...src.matchAll(/cdn_url_235_100"\s*:\s*"(.*?)"/g)].map(m=>m[1]);
+  // 通用提取：兼容 var cdn_url_X_Y = "..." 与 "cdn_url_X_Y": "..."，单双引号均可
+  const c11   = [...src.matchAll(/(?:var\s+)?cdn_url_1_1\s*[:=]\s*["']([^"']+)["']/g)].map(m=>m[1]);
+  const c235  = [...src.matchAll(/(?:var\s+)?cdn_url_235_100\s*[:=]\s*["']([^"']+)["']/g)].map(m=>m[1]);
+  const c2351 = [...src.matchAll(/(?:var\s+)?cdn_url_235_1\s*[:=]\s*["']([^"']+)["']/g)].map(m=>m[1]);
   const titles = [...src.matchAll(/"title"\s*:\s*"(.*?)"/g)].map(m=>m[1].replace(/\\u([0-9a-fA-F]{4})/g,(_,h)=>String.fromCharCode(parseInt(h,16))));
-  const n = Math.max(c11.length, c235.length, 1);
+  const banner = i => c235[i] || c2351[i] || '';
+  const n = Math.max(c11.length, c235.length, c2351.length, 1);
   const arts = [];
   for(let k=0;k<n;k++){
-    if(!c11[k] && !c235[k]) continue;
-    arts.push({title: titles[k] || ('第 '+(k+1)+' 篇'), c11:c11[k]||'', c235:c235[k]||''});
+    if(!c11[k] && !banner(k)) continue;
+    arts.push({title: titles[k] || ('第 '+(k+1)+' 篇'), c11:c11[k]||'', c235:banner(k)});
   }
   if(!arts.length){
     const m = src.match(/var msg\s*=\s*\{[^}]*"img_url"\s*:\s*"(.*?)"/);
