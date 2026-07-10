@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: wechat-cover-tool
+    runtime: python
+    plan: free
+    buildCommand: "echo no-build-needed"
+    startCommand: "python wechat_cover_tool.py"
+    healthCheckPath: "/"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
