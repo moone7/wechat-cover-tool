@@ -9,6 +9,7 @@
 """
 import gzip
 import io
+import os
 import json
 import re
 import urllib.parse
@@ -17,7 +18,7 @@ import zlib
 import zipfile
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-PORT = 8765
+PORT = int(os.environ.get("PORT", 8765))  # 云端部署时由平台注入 PORT 环境变量
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
@@ -484,8 +485,18 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    srv = HTTPServer(("127.0.0.1", PORT), Handler)
-    print("微信推文封面提取工具已启动 -> http://localhost:%d" % PORT)
+    # 云端部署：平台注入 PORT 环境变量 -> 绑定 0.0.0.0 供外部访问
+    # 本地局域网分享：LAN=1 -> 0.0.0.0
+    # 否则仅本机回环 127.0.0.1（默认，最安全）
+    paas = bool(os.environ.get("PORT"))
+    host = "0.0.0.0" if (os.environ.get("LAN") or paas) else "127.0.0.1"
+    srv = HTTPServer((host, PORT), Handler)
+    if paas:
+        print("微信推文封面提取工具已启动(云端常驻) -> 监听 PORT=%d, host=0.0.0.0" % PORT)
+    elif host == "0.0.0.0":
+        print("微信推文封面提取工具已启动(局域网模式) -> http://%s:%d  (同事可通过此地址访问)" % (host, PORT))
+    else:
+        print("微信推文封面提取工具已启动 -> http://localhost:%d" % PORT)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
